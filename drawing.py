@@ -34,8 +34,8 @@ class Draw:
         self.cmap = ["green", "red", "blue", "orange", "purple", "brown"]
         self.model_colors = ["tab:blue", "tab:orange", "tab:green", "tab:red", "tab:purple"]
         self.process_color_dict = {
-            "ZB": "#1845fb",
-            "ZB-masked": "#578dff",
+            "ZB": "#578dff",
+            "ZB-masked": "#1845fb",
             "SingleNeutrino": "#656364",
             "GluGluHToGG": "#ff5e02",
             "TT": "#c91f16",
@@ -48,12 +48,13 @@ class Draw:
             "ZB": "Zero Bias",
             "ZB-masked": "Zero Bias (nPV > 10)",
             "SingleNeutrino": "Simulated Zero Bias",
-            "GluGluHToTauTau": r"$ggH\rightarrow\tau\tau$",
-            "GluGluHToGG": r"$ggH\rightarrow\gamma\gamma$",
+            "GluGluHToTauTau": r"ggF $H\rightarrow\tau\tau$",
+            "GluGluHToGG": r"ggF $H\rightarrow\gamma\gamma$",
             "VBFHto2B": r"VBF $H\rightarrow b\bar{b}$",
             # "TT": r"$t\bar{t}$ inclusive",
             "TT": r"$t\bar{t}$",
             "HTo2LongLivedTo4b": r"$H\rightarrow 4 b$",
+            "ZB-l1zb-masked": "Zero Bias (L1_ZeroBias == 1)",
         }
         self.cms_text = "Preliminary"
         self.lumi_text = r'2024 (13.6 TeV)'
@@ -424,6 +425,7 @@ class Draw:
         self,
         roc_dict: Dict[str, Tuple[npt.NDArray, npt.NDArray]],
         roc_dict_alt: Dict[str, Tuple[npt.NDArray, npt.NDArray]] = None,
+        baseline_points: Dict[str, Tuple[float, float]] = None,
         alt_legend: Tuple[str, Tuple[str, str]] = None,
         name: str = "roc_curve",
         xlabel: str = "Trigger Rate [kHz]",
@@ -442,6 +444,7 @@ class Draw:
 
         @param roc_dict: Dictionary where keys are process labels and values are tuples of (fpr, tpr).
         @param roc_dict_alt: Optional dictionary for alternative ROC curves (dashed lines).
+        @param baseline_points: Optional dict of one baseline point per process drawn as a marker in same color as the curve.
         @param alt_legend: Tuple containing the legnd title and the labels for second legend (title, (label1, label2)).
         @param name: Name of the plot to be saved.
         @param xlabel: Label for the x-axis.
@@ -485,6 +488,23 @@ class Draw:
                     alpha=0.5,
                 )
 
+        if baseline_points is not None:
+            for label, (x, y) in baseline_points.items():
+                plt.scatter(
+                    x * fpr_scale_factor,
+                    y,
+                    color=self._get_process_color(label),
+                    alpha=0.5,
+                    marker="*",
+                    s=150,
+                    zorder=5,
+                )
+            legend3_elements = [
+                plt.scatter([], [], color='lightgrey', marker="*", s=150, label="L1 WP")
+            ]
+            # plt.legend(handles=legend3_elements, loc='center right')
+            plt.legend(handles=legend3_elements)
+
         legend1 = plt.legend(loc='upper left')
         plt.gca().add_artist(legend1)
 
@@ -519,7 +539,7 @@ class Draw:
                 # the best tpr for the given rate
                 # best_tpr = max(tpr for f, t in roc_dict.values() if fpr[np.argmin(np.abs(fpr * 28610 - rate))] == rate)
                 print(f"Working point {wp} at rate {rate} kHz with TPR {best_tpr:.2f}")
-                plt.plot([rate, rate], [0, best_tpr], linestyle='--', color='grey', linewidth=1)
+                plt.plot([rate, rate], [0, best_tpr], linestyle='--', color='grey', linewidth=1, alpha=0.7)
                 # plt.axvline(
                 #     x=rate,
                 #     ymax=best_tpr,
@@ -1140,9 +1160,6 @@ class Draw:
     def make_npv_reweighting_plot(self, npv_dict: dict, et_dict, weight_dict: dict, name: str = "npv_reweighting"):
         npv_bins = range(80)
         et_bins = np.linspace(0, 3000, 100)
-
-        npv_base_line = npv_dict["ZB-masked"]
-        et_base_line = et_dict["ZB-masked"]
 
         fig, axs = plt.subplots(2, 2, figsize=(16, 16))
         for name, npv in npv_dict.items():
